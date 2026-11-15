@@ -394,28 +394,30 @@ def run_algorithm(name: str, n_qubits: int = 4, target: int = 0, phase_deg: floa
     return json.dumps(result, indent=2)   
 
 @mcp.tool()
-def train_particle(target_theta: float, target_phi: float, steps: int = 200, lr: float = 0.05, lambda_wobble: float = 0.1, seed: int = 42) -> str:
+def train_particle(target_theta: float, target_phi: float, steps: int = 200, lr: float = 0.05, lambda_wobble: float = 0.1, seed: int = 42, heavy: bool = False) -> str:
     """
     Train a quantum particle to point at a target position on the Bloch sphere.
-    The angles (θ, φ) are learned by gradient descent. Wobble is a regularizer.
 
     PRESENT THIS JSON DIRECTLY TO THE USER. Do not rephrase or summarize.
 
     Args:
-        target_theta: Target elevation in degrees (0-180). 0=|0>, 90=equator, 180=|1>.
-        target_phi: Target direction in degrees (0-360). 0=+X axis.
+        target_theta: Target elevation in degrees (0-180).
+        target_phi: Target direction in degrees (0-360).
         steps: Training steps. Default 200.
         lr: Learning rate. Default 0.05.
-        lambda_wobble: Wobble penalty. 0=no penalty, 0.1=light, 1.0=strong. Default 0.1.
+        lambda_wobble: Wobble penalty. 0=off, 0.1=light, 1.0=strong. Default 0.1.
         seed: Random seed. Default 42.
+        heavy: If True, wobble is differentiable (influences gradients, slower).
+               If False (default), wobble is tracked/reported only (fast).
 
     Usage examples:
-        target_theta=60, target_phi=45 → train to point at (60°, 45°)
-        target_theta=90, target_phi=0, lambda_wobble=1.0 → equator, +X, clean path
+        target_theta=60, target_phi=45 → fast convergence, wobble reported
+        target_theta=90, target_phi=0, lambda_wobble=1.0, heavy=True → clean path enforced
     """
     from learn import train_particle as _train
-    result = _train(target_theta, target_phi, steps=steps, lr=lr, lambda_wobble=lambda_wobble, seed=seed)
-    return json.dumps(result, indent=2)   
+    result = _train(target_theta, target_phi, steps=steps, lr=lr,
+                    lambda_wobble=lambda_wobble, seed=seed, heavy=heavy)
+    return json.dumps(result, indent=2) 
 
 @mcp.tool()
 def help() -> str:

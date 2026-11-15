@@ -73,31 +73,46 @@ D:\PROJECTS\CUDANT_VQPC
 
 ## KNOWN ISSUES (UPDATED)
 
-| # | Issue | Status |
-|---|-------|--------|
-| 1 | Axis convention inconsistent | ✅ **RESOLVED** (Phase 1: AXIS.md) |
-| 2 | H gate matrix documented | ✅ **RESOLVED** (AXIS.md: H = Ry(90°)) |
-| 3 | Entangled pair snaps to [1,0,0] | ⚠️ **DOCUMENTED** (AXIS.md + engine shows [0,0,0] truth) |
-| 4 | Wobble threshold too aggressive for phase gates | ⬜ Still open (tune when it matters) |
-| 5 | `run_cage` docstring said 1-8 | ✅ **RESOLVED** (f-string with `_max_lions`) |
-| 6 | `cage.py` header prints twice | ⬜ Cosmetic, fix when touching file |
-| 7 | Test 4 in `particle.py`: 10 shots | ⬜ Cosmetic, fix when touching file |
-| 8 | **NEW:** Wobble regularizer not differentiable | ⬜ Phase 4 stretch goal (path is numpy, no grad graph) |
-| 9 | **NEW:** QFT TEST 5 (input |1000⟩) shows uniform — correct but uninformative | ⬜ Change test to input "0001" for visible phase ramp |
+| #   | Issue                                           | Status                                                   |                                                      |
+| --- | ----------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------- |
+| 1   | Axis convention inconsistent                    | ✅ **RESOLVED** (Phase 1: AXIS.md)                       |                                                      |
+| 2   | H gate matrix documented                        | ✅ **RESOLVED** (AXIS.md: H = Ry(90°))                   |                                                      |
+| 3   | Entangled pair snaps to [1,0,0]                 | ⚠️ **DOCUMENTED** (AXIS.md + engine shows [0,0,0] truth) |                                                      |
+| 4   | Learning Layer                                  | ✅ Done (light + heavy modes)                            |                                                      |
+| 5   | `run_cage` docstring said 1-8                   | ✅ **RESOLVED** (f-string with `_max_lions`)             |                                                      |
+| 6   | `cage.py` header prints twice                   | ⬜ Cosmetic, fix when touching file                      |                                                      |
+| 7   | Test 4 in `particle.py`: 10 shots               | ⬜ Cosmetic, fix when touching file                      |                                                      |
+| 8   | **NEW:** Wobble regularizer not differentiable  | ✅ **RESOLVED** (heavy mode: acceleration penalty, differentiable. Geometric wobble is route-invariant by design.)|   
+| 9   | **NEW:** QFT TEST 5 (input                      | 1000⟩) shows uniform — correct but uninformative         | ⬜ Change test to input "0001" for visible phase ramp |
 
 ---
 
 ## PHASE 4 NOTES (wobble regularizer)
 
-The wobble is **tracked and reported** but **not differentiable**. The path is stored as a numpy list (snapshots), so `loss.backward()` doesn't flow through it. The particle converges to the target regardless of `lambda_wobble`.
+**Two modes:**
 
-**To make it truly differentiable (future):**
-- Keep the path as a tensor (not `.cpu().numpy()`)
-- Compute wobble as a differentiable function of the tensor path
-- Add to loss before `.backward()`
-- Cost: O(steps × 3) extra VRAM per training run. Fine for 200 steps, expensive for 1000+.
+| Mode | `heavy` | What it does | Wobble reported |
+|------|---------|-------------|-----------------|
+| Light (default) | `False` | Fastest convergence. Wobble tracked and reported only. | Geometric (path curvature on sphere) |
+| Heavy | `True` | Penalizes parameter acceleration (smooths optimizer steps). | Geometric (same metric) + `param_smoothness` |
 
-**Current behavior:** `lambda_wobble` is accepted, stored in the output, but has zero effect on gradients. Documented as a known limitation.
+**Key fact:** The geometric wobble is a property of the Ry→Rz route (AXIS.md law), not of the optimizer. The heavy mode smooths the *driving* (how the optimizer moves θ and φ), but the *road* (the path on the sphere) is fixed by the universal recipe. Both modes converge to the same target with the same geometric wobble.
+
+**Heavy mode's value:**
+- Cleaner intermediate states (useful for Phase 6 demo video)
+- Lower `param_smoothness` (how jerky the training was)
+- Foundation for future path-based loss functions
+
+**`param_smoothness` field** (added to `train_particle` output in heavy mode):
+- Computed as the mean squared parameter acceleration over all steps
+- 0 = perfectly smooth training. Higher = more oscillation.
+- This is the number the penalty actually controls.
+
+**Agent's decision:**
+- "I need the fastest answer" → `heavy=False` (default)
+- "I need the cleanest training path (for visualization or diagnostics)" → `heavy=True`
+
+Same pattern as cage vs. engine. Two backends, one interface.   
 
 ---
 

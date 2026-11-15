@@ -94,80 +94,129 @@ def _compute_path_wobble(path: List[np.ndarray]) -> float:
         max_dev = max(max_dev, dist)
     return float(max_dev)
 
+def _differentiable_wobble(tensor_path: list) -> torch.Tensor:
+    """
+    Max distance from chord, fully differentiable.
+    All ops are tensor ops (dot, norm, max) → autograd flows through.
+    """
+    if len(tensor_path) < 3:
+        return torch.tensor(0.0, device=tensor_path[0].device)
+    
+    start = tensor_path[0]
+    end = tensor_path[-1]
+    direction = end - start
+    norm = direction.norm()
+    
+    if norm < 1e-8:
+        return torch.tensor(0.0, device=start.device)
+    
+    direction = direction / norm
+    
+    # Distance of each point from the chord
+    dists = []
+    for v in tensor_path:
+        t = torch.dot(v - start, direction)
+        closest = start + t * direction
+        dists.append((v - closest).norm())
+    
+    # Max distance (differentiable: grad flows to the argmax point)
+    stacked = torch.stack(dists)
+    max_idx = torch.argmax(stacked)
+    return stacked[max_idx]      
 
 def train_particle(target_theta_deg: float, target_phi_deg: float,
                    steps: int = 200, lr: float = 0.05,
-                   lambda_wobble: float = 0.1, seed: int = 42) -> Dict:
+                   lambda_wobble: float = 0.1, seed: int = 42,
+                   heavy: bool = False) -> Dict:
     """
     Train a particle to point at (target_theta, target_phi) on the Bloch sphere.
-    
-    Loss = angular_distance_to_target + lambda_wobble * wobble
     
     Args:
         target_theta_deg: Target elevation (0-180).
         target_phi_deg: Target direction (0-360).
         steps: Training steps.
         lr: Learning rate.
-        lambda_wobble: Wobble penalty weight. 0 = no penalty.
+        lambda_wobble: Wobble penalty weight. 0 = off.
         seed: Random seed.
-    
-    Returns:
-        dict with final angles, target, loss history, wobble, path, verdict.
+        heavy: If True, wobble is DIFFERENTIABLE (influences gradients).
+               If False (default), wobble is tracked/reported only (fast).
     """
     torch.manual_seed(seed)
     
     particle = LearnableParticle()
     optimizer = torch.optim.Adam(particle.parameters(), lr=lr)
     
-    # Target vector (ground truth)
     t_theta = np.radians(target_theta_deg)
     t_phi = np.radians(target_phi_deg)
-    target_v = np.array([
+    target_v = torch.tensor([
         np.sin(t_theta) * np.cos(t_phi),
         np.sin(t_theta) * np.sin(t_phi),
         np.cos(t_theta)
-    ])
+    ], dtype=torch.float32, device="cuda")
     
     particle.clear_path()
     loss_history = []
     wobble_history = []
     
+    # Track parameter velocity for acceleration penalty
+    prev_theta = None
+    prev_phi = None
+    prev_dtheta = None
+    prev_dphi = None
+    
     for step in range(steps):
-        # Forward
         v = particle.forward()
-        v_np = v.detach().cpu().numpy()
         
-        # Loss: 1 - dot(v, target)  [0 when aligned, 2 when opposite]
-        # This is the angular distance (squared, up to a constant)
-        dot = torch.sum(v * torch.tensor(target_v, dtype=torch.float32, device=v.device))
+        # Angular loss
+        dot = torch.sum(v * target_v)
         loss = 1.0 - dot
         
-        # Wobble penalty (computed on the path so far)
-        particle.record_path()
-        wobble = _compute_path_wobble(particle._path)
-        wobble_loss = lambda_wobble * wobble
+        if heavy:
+            # Differentiable wobble: penalize parameter acceleration
+            # (jerk = the particle is oscillating, not moving straight)
+            if step > 0:
+                dtheta = particle.theta - prev_theta
+                dphi = particle.phi - prev_phi
+                if step > 1:
+                    accel = (dtheta - prev_dtheta)**2 + (dphi - prev_dphi)**2
+                    wobble = lambda_wobble * accel
+                else:
+                    wobble = torch.tensor(0.0, device="cuda")
+            else:
+                wobble = torch.tensor(0.0, device="cuda")
+            
+            total_loss = loss + wobble
+            particle.record_path()   
+        else:
+            particle.record_path()
+            wobble_val = _compute_path_wobble(particle._path)
+            total_loss = loss
         
-        # Total loss
-        total_loss = loss + wobble_loss
-        
-        # Backward
         optimizer.zero_grad()
-        loss.backward()  # Only backprop through the angular loss (wobble is a regularizer on the path, not differentiable through the graph)
+        total_loss.backward()
         optimizer.step()
         
+        # Update velocity tracking (detach: we only need values, not graph)
+        if heavy and step > 0:
+            prev_dtheta = dtheta.detach()
+            prev_dphi = dphi.detach()
+        if heavy:
+            prev_theta = particle.theta.detach()
+            prev_phi = particle.phi.detach()   
+        
         loss_history.append(loss.item())
-        wobble_history.append(wobble)
+        wobble_history.append(wobble.item() if heavy else wobble_val)   
     
     # Final state
     final_v = particle.forward().detach().cpu().numpy()
     final_theta = np.degrees(np.arccos(np.clip(final_v[2], -1, 1)))
     final_phi = np.degrees(np.arctan2(final_v[1], final_v[0]))
+    
+    # Final wobble
     final_wobble = _compute_path_wobble(particle._path)
     
-    # Angular error
-    error = np.degrees(np.arccos(np.clip(np.dot(final_v, target_v), -1, 1)))
+    error = np.degrees(np.arccos(np.clip(np.dot(final_v, target_v.cpu().numpy()), -1, 1)))
     
-    # Verdict
     if error < 1.0:
         verdict = f"CONVERGED. Error = {error:.3f}°. Particle points at target."
     elif error < 5.0:
@@ -182,6 +231,7 @@ def train_particle(target_theta_deg: float, target_phi_deg: float,
         "steps": steps,
         "lr": lr,
         "lambda_wobble": lambda_wobble,
+        "heavy": heavy,
         "final_wobble": round(final_wobble, 6),
         "loss_first": round(loss_history[0], 6),
         "loss_last": round(loss_history[-1], 6),
