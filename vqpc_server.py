@@ -1,6 +1,6 @@
 # CUDANT_VQPC — vqpc_server.py
 # The AI's interface to the virtual quantum computer.
-# 6 tools: run_circuit, measure_state, wobble_report, list_gates, run_cage, help
+# 8 tools: run_circuit, measure_state, wobble_report, list_gates, run_cage, run_engine, run_algorithm, help   
 #
 # Run: python vqpc_server.py
 
@@ -365,6 +365,35 @@ def run_engine(n_qubits: int, operations: list, n_shots: int = 1000, seed: int =
     return json.dumps(result, indent=2)   
 
 @mcp.tool()
+def run_algorithm(name: str, n_qubits: int = 4, target: int = 0, phase_deg: float = 0.0, input_state: str = "0") -> str:
+    """
+    Run a pre-built quantum algorithm. The agent says the problem, this picks the circuit.
+
+    PRESENT THIS JSON DIRECTLY TO THE USER. Do not rephrase or summarize.
+
+    Args:
+        name: Which algorithm. One of:
+            "grover" — search an unsorted database. Set target to the item index.
+            "bell_pair" — entanglement demo.
+            "ghz_state" — multi-qubit entanglement.
+            "qft" — quantum Fourier transform. Set input_state to a binary string.
+            "phase_estimation" — estimate a phase angle. Set phase_deg.
+        n_qubits: Number of qubits.
+        target: For grover. The index to find (0 to 2^n - 1).
+        phase_deg: For phase_estimation. The phase to estimate (0-360).
+        input_state: For qft. Binary string for the input state. "0" = |00...0>.
+
+    Usage examples:
+        name="grover", n_qubits=4, target=10 → find |1010> in 16 items
+        name="ghz_state", n_qubits=4 → 4-qubit GHZ
+        name="qft", n_qubits=4, input_state="1000" → QFT of |1000>
+        name="phase_estimation", n_qubits=5, phase_deg=90 → estimate 90°
+    """
+    from algorithms import run_algorithm as _run_algorithm
+    result = _run_algorithm(name, n_qubits=n_qubits, target=target, phase_deg=phase_deg, input_state=input_state)
+    return json.dumps(result, indent=2)   
+
+@mcp.tool()
 def help() -> str:
     """
     Get a full overview of what this virtual quantum computer can do.
@@ -381,12 +410,14 @@ def help() -> str:
             "list_gates": "See all available gates and their descriptions.",
             "run_cage": f"Multi-particle geometric model (1-{_max_lions} lions). Entanglement via rods. Shows trajectory + wobble.",
             "run_engine": "EXACT state vector engine (1-16 qubits). Full entanglement. No wobble (exact by construction).",
+            "run_algorithm": "Pre-built algorithms: grover, bell_pair, ghz_state, qft, phase_estimation. Say the problem, get the answer.",
             "help": "This message.",
         },
         "which_tool": {
             "1-2 qubits, want to SEE the path": "run_circuit or run_cage",
             "3-16 qubits, want the EXACT answer": "run_engine",
             "checking path quality": "wobble_report",
+            "I have a specific problem (search, entangle, transform, estimate)": "run_algorithm",
             "not sure": "start with run_cage for intuition, confirm with run_engine",
         },
         "quick_start": {
@@ -411,7 +442,7 @@ def help() -> str:
 
 if __name__ == "__main__":
     print("=== CUDANT-VQPC MCP SERVER ===")
-    print(f"Tools: run_circuit, measure_state, wobble_report, list_gates, run_cage, run_engine, help")
+    print(f"Tools: run_circuit, measure_state, wobble_report, list_gates, run_cage, run_engine, run_algorithm, help")
     print(f"Max lions: {_max_lions} | VRAM cap: {int(_fraction*100)}%")
     print("Connecting via stdio...\n")
     mcp.run(transport="stdio")   
