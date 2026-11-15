@@ -394,6 +394,30 @@ def run_algorithm(name: str, n_qubits: int = 4, target: int = 0, phase_deg: floa
     return json.dumps(result, indent=2)   
 
 @mcp.tool()
+def train_particle(target_theta: float, target_phi: float, steps: int = 200, lr: float = 0.05, lambda_wobble: float = 0.1, seed: int = 42) -> str:
+    """
+    Train a quantum particle to point at a target position on the Bloch sphere.
+    The angles (θ, φ) are learned by gradient descent. Wobble is a regularizer.
+
+    PRESENT THIS JSON DIRECTLY TO THE USER. Do not rephrase or summarize.
+
+    Args:
+        target_theta: Target elevation in degrees (0-180). 0=|0>, 90=equator, 180=|1>.
+        target_phi: Target direction in degrees (0-360). 0=+X axis.
+        steps: Training steps. Default 200.
+        lr: Learning rate. Default 0.05.
+        lambda_wobble: Wobble penalty. 0=no penalty, 0.1=light, 1.0=strong. Default 0.1.
+        seed: Random seed. Default 42.
+
+    Usage examples:
+        target_theta=60, target_phi=45 → train to point at (60°, 45°)
+        target_theta=90, target_phi=0, lambda_wobble=1.0 → equator, +X, clean path
+    """
+    from learn import train_particle as _train
+    result = _train(target_theta, target_phi, steps=steps, lr=lr, lambda_wobble=lambda_wobble, seed=seed)
+    return json.dumps(result, indent=2)   
+
+@mcp.tool()
 def help() -> str:
     """
     Get a full overview of what this virtual quantum computer can do.
@@ -411,14 +435,17 @@ def help() -> str:
             "run_cage": f"Multi-particle geometric model (1-{_max_lions} lions). Entanglement via rods. Shows trajectory + wobble.",
             "run_engine": "EXACT state vector engine (1-16 qubits). Full entanglement. No wobble (exact by construction).",
             "run_algorithm": "Pre-built algorithms: grover, bell_pair, ghz_state, qft, phase_estimation. Say the problem, get the answer.",
+            "train_particle": "Train a particle to point at a target (θ, φ). Gradient descent + wobble regularizer.",
             "help": "This message.",
         },
         "which_tool": {
             "1-2 qubits, want to SEE the path": "run_circuit or run_cage",
             "3-16 qubits, want the EXACT answer": "run_engine",
             "checking path quality": "wobble_report",
-            "I have a specific problem (search, entangle, transform, estimate)": "run_algorithm",
             "not sure": "start with run_cage for intuition, confirm with run_engine",
+            "I have a specific problem (search, entangle, transform, estimate)": "run_algorithm",
+            "teach the particle to point somewhere": "train_particle",
+
         },
         "quick_start": {
             "step_1": "Call list_gates to see what gates are available.",
