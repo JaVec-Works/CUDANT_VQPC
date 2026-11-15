@@ -420,6 +420,31 @@ def train_particle(target_theta: float, target_phi: float, steps: int = 200, lr:
     return json.dumps(result, indent=2) 
 
 @mcp.tool()
+def replay(gates: str, slowmo: bool = True) -> str:
+    """
+    Visualize a circuit's path on the Bloch sphere. Generates a GIF animation.
+
+    PRESENT THIS JSON DIRECTLY TO THE USER. Do not rephrase or summarize.
+
+    Args:
+        gates: Comma-separated gate sequence (same format as run_circuit).
+        slowmo: If True, interpolate between gates (smooth animation). Default True.
+
+    Returns:
+        GIF file path + step-by-step trajectory data (replay).
+
+    Usage examples:
+        gates="H, T, H" → phase kickback curve
+        gates="Rx(50)" → straight line (clean)
+        gates="Rx(5), Rz(10), Rx(5), Rz(10)" → cone (wobbly)
+    """
+    import os
+    from visualize import generate_gif
+    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "replay.gif")
+    result = generate_gif(gates, slowmo=slowmo, output_path=output_path)
+    return json.dumps(result, indent=2)   
+
+@mcp.tool()
 def help() -> str:
     """
     Get a full overview of what this virtual quantum computer can do.
@@ -438,6 +463,7 @@ def help() -> str:
             "run_engine": "EXACT state vector engine (1-16 qubits). Full entanglement. No wobble (exact by construction).",
             "run_algorithm": "Pre-built algorithms: grover, bell_pair, ghz_state, qft, phase_estimation. Say the problem, get the answer.",
             "train_particle": "Train a particle to point at a target (θ, φ). Gradient descent + wobble regularizer.",
+            "replay": "Visualize a circuit's path. Generates a GIF of the Bloch sphere with the vector animating through each gate.",
             "help": "This message.",
         },
         "which_tool": {
@@ -447,6 +473,7 @@ def help() -> str:
             "not sure": "start with run_cage for intuition, confirm with run_engine",
             "I have a specific problem (search, entangle, transform, estimate)": "run_algorithm",
             "teach the particle to point somewhere": "train_particle",
+            "I want to SEE the particle move": "replay",
 
         },
         "quick_start": {
