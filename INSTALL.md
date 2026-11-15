@@ -1,216 +1,228 @@
-# INSTALL — CUDANT_VQPC
 
-**From zero to "TRUSTED" in 10 minutes. No experience needed.**
+# CUDANT_VQPC — INSTALL
 
-## What you need
-
-|   |   |   |
-|---|---|---|
-|Thing|Minimum|Where to get it|
-|Windows 10 or 11|Yes|You already have it|
-|NVIDIA GPU|4 GB VRAM (GTX 1050 or better)|You already have it|
-|Python|3.12|python.org|
-|Internet|For one `pip install`|You already have it|
-
-That's it. No cloud account. No quantum hardware. No CUDA toolkit install. No cryogenics.
+**Zero to hero. Any level. Windows-first (Linux/Mac notes included).**
 
 ---
 
-## Step 1: Install Python (skip if you already have it)
+## What you need
 
-1. Go to **python.org/downloads**
+| Requirement | Minimum | Recommended |
+|-------------|---------|-------------|
+| OS | Windows 10 / Ubuntu 20.04+ | Windows 11 |
+| Python | 3.10 | 3.12 |
+| GPU | NVIDIA, 4 GB VRAM | NVIDIA, 8 GB VRAM |
+| CUDA | 11.8 | 12.x+ |
+| RAM | 16 GB | 32 GB+ |
+| Disk | 2 GB (PyTorch) | 5 GB |
+
+**Check your GPU:**
+
+```powershell
+nvidia-smi
+```
+
+If it prints your GPU name and CUDA version, you're good. If it says "N-SMH" or "not found," install the NVIDIA driver first: [https://www.nvidia.com/drivers](https://www.nvidia.com/drivers)
+
+---
+
+## Step 1: Install Python
+
+If you don't have Python 3.12:
+
+1. Go to https://python.org/downloads
     
-2. Click **"Download Python 3.12.x"**
+2. Download Python 3.12.x
     
-3. Run the installer
+3. Run the installer. **Check "Add to PATH"** on the first screen.
     
-4. **IMPORTANT:** Check the box that says **"Add Python to PATH"**
-    
-5. Click **"Install Now"**
-    
-6. Close the installer
+4. Click "Install Now."
     
 
-**Verify:** Press `Win + X`, type "PowerShell", hit Enter. Then type:
+Verify:
 
 ```
 python --version
+# Should print: Python 3.12.x
 ```
-
-You should see: `Python 3.12.x`
-
-If you see an error, restart your computer and try again.
 
 ---
 
 ## Step 2: Get the code
 
-**Option A — No Git (easiest):**
-
-1. Open a browser, go to the repo URL
-    
-2. Click the green **"Code"** button → **"Download ZIP"**
-    
-3. Unzip it to a folder you like, e.g. `D:\PROJECTS\CUDANT_VQPC`
-    
-
-**Option B — With Git:**
-
-Open PowerShell and type:
-
 ```
-git clone <repo-url> D:\PROJECTS\CUDANT_VQPC
+git clone <repo-url>
+cd CUDANT_VQPC
 ```
 
 ---
 
-## Step 3: Make a virtual environment
-
-Open PowerShell. Navigate to your folder:
-
-```
-cd D:\PROJECTS\CUDANT_VQPC
-```
-
-Create the virtual environment:
+## Step 3: Create the environment
 
 ```
 python -m venv .venv
 ```
 
-Activate it:
+**Windows:**
 
 ```
-.venv\Scripts\Activate.ps1
+.venv\Scripts\activate
 ```
 
-You should now see `(.venv)` at the start of your prompt:
+**Linux/Mac:**
 
 ```
-(.venv) PS D:\PROJECTS\CUDANT_VQPC>
+source .venv/bin/activate
 ```
 
-**If you get an error about "running scripts is disabled":**
-
-Type this first, then try the activate command again:
-
-```
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-Type `Y` and press Enter when it asks for confirmation.
+You should see `(.venv)` at the start of your prompt. You're now inside the project's isolated environment.
 
 ---
 
-## Step 4: Install the packages
+## Step 4: Install dependencies
+
+```
+pip install -r requirements.txt
+```
+
+This installs:
+
+- `torch` (PyTorch with CUDA — ~2.5 GB download)
+    
+- `numpy`
+    
+- `fastmcp` (Model Context Protocol server)
+    
+- `matplotlib` (for the visualizer)
+    
+
+**Verify CUDA is working:**
+
+```
+python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
+```
+
+Should print:
+
+```
+True
+NVIDIA Quadro RTX 4000   (or your GPU)
+```
+
+If it prints `False`, your PyTorch install doesn't have CUDA. Reinstall:
 
 ```
 pip install torch --index-url https://download.pytorch.org/whl/cu124
-pip install numpy fastmcp
-```
-
-**Important:** The first command installs PyTorch with CUDA support. If you use plain `pip install torch`, you'll get the CPU-only version and the GPU won't work.
-
-**Verify your GPU is detected:**
-
-```
-python -c "import torch; print(torch.cuda.is_available())"
-```
-
-You should see: `True`
-
-If you see `False`, your NVIDIA drivers are outdated. Update them at **[nvidia.com/drivers](https://nvidia.com/drivers)**, then try again.
-
-**If your CUDA version is 12.1 instead of 12.4:**
-
-Check with `nvidia-smi` in a separate PowerShell window (look at the top-right "CUDA Version"). If it says 12.1, use:
-
-```
-pip install torch --index-url https://download.pytorch.org/whl/cu121
 ```
 
 ---
 
-## Step 5: Run it
-
-**The particle (the core):**
+## Step 5: Generate settings
 
 ```
-python particle.py
+python benchmark.py
 ```
 
-You should see the particle rotate to any point on the sphere, wobble in a cone, hit the cage (measurement), and 1000 particles computed in one batch.
+This:
 
-**The 5 laws (the physics engine):**
+- Detects your GPU
+    
+- Tests VRAM usage
+    
+- Writes `settings.conf` (VRAM cap, max lions)
+    
 
-```
-python laws.py
-```
-
-You should see superposition, reversibility, entanglement, collapse, and interference demonstrated.
-
-**The gates (how you steer it):**
-
-```
-python gates.py
-```
-
-You should see each gate move the particle, H·H=I, S·S†=I, and 1000 particles in one batch.
-
-**Measurement (looking at the particle):**
+You should see output like:
 
 ```
-python measure.py
+  VRAM cap: 5.8% (500 MB for CUDANT_VQPC)
+  Max lions: 1024
 ```
 
-You should see single-shot collapse and 1000-shot sampling matching theory.
+---
 
-**The full pipeline (the virtual quantum computer):**
+## Step 6: Run the tests
 
 ```
-python circuit.py
+python particle.py      # The particle. Watch it rotate.
+python gates.py         # All gates. Watch them work.
+python circuit.py       # Full pipeline. Watch the wobble.
+python cage.py          # Multi-particle. Watch entanglement.
+python engine.py        # 16-qubit exact. Watch Grover.
+python algorithms.py    # All 5 algorithms.
+python learn.py         # The particle learns.
+python visualize.py     # Generates 3 GIFs.
 ```
 
-You should see circuits running with trajectory, wobble detection, and measurement. The "Clean vs Wobbly" test shows the agent can see the difference between a straight path and a cone.
+Each one should print "✅" for every test. If any fails, check the error message.
 
-**The AI agent server:**
+---
+
+## Step 7: Run the server
 
 ```
 python vqpc_server.py
 ```
 
-This starts the MCP server. It won't print anything useful on its own — it waits for an AI agent to connect. You'll see:
+You should see:
 
 ```
+  VRAM cap: 5.8% (500 MB for CUDANT_VQPC)
+  Max lions: 1024
 === CUDANT-VQPC MCP SERVER ===
-Tools: run_circuit, measure_state, wobble_report, list_gates
+Tools: run_circuit, measure_state, wobble_report, list_gates, run_cage, run_engine, run_algorithm, train_particle, replay, help
+Max lions: 1024 | VRAM cap: 6%
 Connecting via stdio...
 ```
 
+It's now waiting for an agent to connect via MCP. **Ctrl+C** to stop.
+
 ---
 
-## Step 6: Connect an AI agent (optional)
+## Step 8: Connect an agent
 
-If you have an MCP-capable client (PI harness, Claude Desktop, etc.), add this to your config:
+### Claude Desktop
+
+1. Open Claude Desktop → Settings → Developer → Edit `claude_desktop_config.json`
+    
+2. Add:
+    
 
 ```
 {
-  "vqpc": {
-    "command": "D:\\PROJECTS\\CUDANT_VQPC\\.venv\\Scripts\\python.exe",
-    "args": ["D:\\PROJECTS\\CUDANT_VQPC\\vqpc_server.py"],
-    "cwd": "D:\\PROJECTS\\CUDANT_VQPC",
-    "exposure": "direct"
+  "mcpServers": {
+    "cudant-vqpc": {
+      "command": "python",
+      "args": ["D:\\PROJECTS\\CUDANT_VQPC\\vqpc_server.py"],
+      "cwd": "D:\\PROJECTS\\CUDANT_VQPC"
+    }
   }
 }
 ```
 
-Adjust the path to wherever you put the project.
+3. Restart Claude Desktop.
+    
+4. In a new chat, the agent will see 10 new tools. Ask it: _"Call help on the quantum computer."_
+    
 
-Then ask your agent:
+### Other MCP clients
 
-> "Use the vqpc server. Call the run_circuit tool with gates='H, T, H', n_shots=1000. Report the tool output exactly as returned. Do not call any other tools."
+Any MCP-compatible client works. The server speaks stdio. Point it at `python vqpc_server.py` with the working directory set to the project folder.
 
-It will run the circuit, measure it, check the wobble, and report back with a verdict.
+---
+
+## Step 9: Open the GIFs
+
+After running `python visualize.py`, three GIFs appear in the project folder:
+
+- `replay_clean.gif` — straight line (single rotation)
+    
+- `replay_wobbly.gif` — cone (10 small rotations)
+    
+- `replay_kickback.gif` — curve (H, T, H phase kickback)
+    
+
+Open them in Windows Photos, or any image viewer. The red arrow is the particle. The orange trail is its path.
 
 ---
 
@@ -219,11 +231,35 @@ It will run the circuit, measure it, check the wobble, and report back with a ve
 |   |   |
 |---|---|
 |Problem|Fix|
-|`python` not recognized|Reinstall Python, check "Add to PATH", restart computer|
-|`(.venv)` not appearing|You're in the wrong folder. Type `cd D:\PROJECTS\CUDANT_VQPC`|
-|`torch.cuda.is_available()` = False|Update NVIDIA drivers at [nvidia.com/drivers](https://nvidia.com/drivers)|
-|"Torch not compiled with CUDA enabled"|Reinstall: `pip install torch --index-url https://download.pytorch.org/whl/cu124`|
-|`ModuleNotFoundError: No module named 'fastmcp'`|`pip install fastmcp`|
-|Circular import error with fastmcp|Make sure your server file is NOT named `mcp.py`. Use `vqpc_server.py`.|
-|Out of memory (OOM) error|Close other GPU apps. Single-particle VQPC needs very little VRAM.|
-|"Running scripts is disabled"|Type `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, press Y|
+|`torch.cuda.is_available()` returns `False`|Reinstall PyTorch with CUDA: `pip install torch --index-url https://download.pytorch.org/whl/cu124`|
+|`settings.conf not found`|Run `python benchmark.py` first|
+|`ModuleNotFoundError: fastmcp`|`pip install fastmcp` (inside the venv)|
+|`ModuleNotFoundError: matplotlib`|`pip install matplotlib` (inside the venv)|
+|GPU not detected|Update NVIDIA driver. Check `nvidia-smi` in a fresh terminal.|
+|`&&` not recognized in PowerShell|Use `;` instead (PowerShell 5.1 doesn't support `&&`)|
+|`.venv` in git|It shouldn't be. Check `.gitignore` has `.venv/`|
+|VRAM error|Lower the cap in `settings.conf` → `[gpu] memory_fraction`|
+
+---
+
+## Uninstall
+
+```
+Remove-Item -Recurse -Force .venv
+```
+
+That's it. The `.venv` folder is the entire installation. Delete it and you're back to zero.
+
+---
+
+## Updating
+
+```
+git pull
+pip install -r requirements.txt
+python benchmark.py
+```
+
+
+---
+EOF
