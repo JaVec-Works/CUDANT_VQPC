@@ -142,6 +142,16 @@ Waiting on: `cuda-quantum` GitHub → `cudaq-ml` package (est. Q1-Q2 2027).
 
 ## PHASE 6 (COMMERCIAL)
 
+## PUBLICATION
+
+**Paper:** "Agent-Drivable Quantum Layer with Trajectory Diagnostics on a Consumer Mobile GPU"
+**Author:** Jose Luis Van Houtven Escobar
+**Date:** November 16, 2026
+**DOI:** 10.5281/zenodo.24270249
+**URL:** https://doi.org/10.5281/zenodo.24270249
+**License:** CC BY 4.0
+**Code:** github.com/JaVec-Works/CUDANT_VQPC (private)   
+
 | Step | Status |
 |------|--------|
 | Visualizer (replay tool) | ✅ Done |
