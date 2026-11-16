@@ -34,7 +34,7 @@ The particle, the laws, the gates, the measurement, the circuit, the cage.
     
 - [x] `INSTALL.md` — Zero-to-hero guide
     
-- [x] GitHub repo (private) — pushed, clean, no .venv
+- [x] GitHub repo (public) — pushed, clean, no .venv
     
 - [x] PI harness wiring — 5/5 tools tested clean with Huihui
     
@@ -201,7 +201,7 @@ The particle, the laws, the gates, the measurement, the circuit, the cage.
     
 - [ ] **Demo video** (after paper): 10 minutes. Show the agent running Grover, seeing the wobble, getting the verdict. Post on YouTube.
     
-- [ ] **Open CUDANT-128** (after paper): Make the public repo the "scale" story. CUDANT + CUDANT_VQPC stay private (the product).
+- [ ] **Open CUDANT-128** (after paper): Make the public repo the "scale" story. CUDANT + CUDANT_VQPC public repo (the product).
     
 - [ ] **Education** (6-12 months): "Quantum Computing on a $500 GPU" course. Universities, bootcamps.
     

@@ -150,7 +150,7 @@ Waiting on: `cuda-quantum` GitHub → `cudaq-ml` package (est. Q1-Q2 2027).
 **DOI:** 10.5281/zenodo.24270249
 **URL:** https://doi.org/10.5281/zenodo.24270249
 **License:** CC BY 4.0
-**Code:** github.com/JaVec-Works/CUDANT_VQPC (private)   
+**Code:** github.com/JaVec-Works/CUDANT_VQPC (public)   
 
 | Step | Status |
 |------|--------|

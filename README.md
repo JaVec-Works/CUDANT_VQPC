@@ -224,7 +224,7 @@ Box 2 is what no other simulator gives you. The agent can diagnose _why_ an answ
     
 - **CUDANT-128** (public) — 128-qubit extension via CUDA-Q MPS with fidelity gate
     
-- CUDANT_VQPC is the **merged product**: geometry + exact engine + algorithms + learning + visualization, all agent-facing
+- CUDANT_VQPC (public) — is the **merged product**: geometry + exact engine + algorithms + learning + visualization, all agent-facing
 
 ---
 EOF
