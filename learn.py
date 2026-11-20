@@ -226,8 +226,8 @@ def train_particle(target_theta_deg: float, target_phi_deg: float,
     
     return {
         "target": {"theta_deg": target_theta_deg, "phi_deg": target_phi_deg},
-        "final": {"theta_deg": round(final_theta, 3), "phi_deg": round(final_phi, 3)},
-        "error_deg": round(error, 4),
+        "final": {"theta_deg": round(float(final_theta), 3), "phi_deg": round(float(final_phi), 3)},
+        "error_deg": round(float(error), 4),
         "steps": steps,
         "lr": lr,
         "lambda_wobble": lambda_wobble,

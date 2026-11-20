@@ -169,11 +169,11 @@ def generate_gif(gates_str: str, slowmo: bool = True, output_path: str = "replay
         p0 = (1 + v[2]) / 2
         replay_data.append({
             "gate": label,
-            "theta_deg": round(theta, 2),
-            "phi_deg": round(phi, 2),
+            "theta_deg": round(float(theta), 2),
+            "phi_deg": round(float(phi), 2),
             "vector": [round(float(x), 6) for x in v],
-            "P_0": round(p0, 6),
-            "P_1": round(1 - p0, 6),
+            "P_0": round(float(p0), 6),
+            "P_1": round(float(1 - p0), 6),   
         })
     
     return {
