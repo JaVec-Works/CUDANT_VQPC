@@ -421,10 +421,29 @@ def train_particle(target_theta: float, target_phi: float, steps: int = 200, lr:
         target_theta=60, target_phi=45 → fast convergence, wobble reported
         target_theta=90, target_phi=0, lambda_wobble=1.0, heavy=True → clean path enforced
     """
+    import json
     from learn import train_particle as _train
+
+    def make_json_serializable(obj):
+        """Convert numpy types to JSON-serializable Python types"""
+        import numpy as np
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, dict):
+            return {key: make_json_serializable(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [make_json_serializable(item) for item in obj]
+        else:
+            return obj
+
     result = _train(target_theta, target_phi, steps=steps, lr=lr,
                     lambda_wobble=lambda_wobble, seed=seed, heavy=heavy)
-    return json.dumps(result, indent=2) 
+    serializable_result = make_json_serializable(result)
+    return json.dumps(serializable_result, indent=2)
 
 @mcp.tool()
 def replay(gates: str, slowmo: bool = True) -> str:
@@ -432,24 +451,29 @@ def replay(gates: str, slowmo: bool = True) -> str:
     Visualize a circuit's path on the Bloch sphere. Generates a GIF animation.
 
     PRESENT THIS JSON DIRECTLY TO THE USER. Do not rephrase or summarize.
-
-    Args:
-        gates: Comma-separated gate sequence (same format as run_circuit).
-        slowmo: If True, interpolate between gates (smooth animation). Default True.
-
-    Returns:
-        GIF file path + step-by-step trajectory data (replay).
-
-    Usage examples:
-        gates="H, T, H" → phase kickback curve
-        gates="Rx(50)" → straight line (clean)
-        gates="Rx(5), Rz(10), Rx(5), Rz(10)" → cone (wobbly)
     """
-    import os
+    import json
     from visualize import generate_gif
-    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "replay.gif")
-    result = generate_gif(gates, slowmo=slowmo, output_path=output_path)
-    return json.dumps(result, indent=2)   
+
+    def make_json_serializable(obj):
+        """Convert numpy types to JSON-serializable Python types"""
+        import numpy as np
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, dict):
+            return {key: make_json_serializable(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [make_json_serializable(item) for item in obj]
+        else:
+            return obj
+
+    result = generate_gif(gates, slowmo=slowmo)
+    serializable_result = make_json_serializable(result)
+    return json.dumps(serializable_result, indent=2)
 
 @mcp.tool()
 def help() -> str:

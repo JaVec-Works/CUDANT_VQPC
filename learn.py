@@ -124,6 +124,7 @@ def _differentiable_wobble(tensor_path: list) -> torch.Tensor:
     max_idx = torch.argmax(stacked)
     return stacked[max_idx]      
 
+
 def train_particle(target_theta_deg: float, target_phi_deg: float,
                    steps: int = 200, lr: float = 0.05,
                    lambda_wobble: float = 0.1, seed: int = 42,
@@ -171,6 +172,9 @@ def train_particle(target_theta_deg: float, target_phi_deg: float,
         dot = torch.sum(v * target_v)
         loss = 1.0 - dot
         
+        # ALWAYS record path (not inside conditional)
+        particle.record_path()
+        
         if heavy:
             # Differentiable wobble: penalize parameter acceleration
             # (jerk = the particle is oscillating, not moving straight)
@@ -186,9 +190,8 @@ def train_particle(target_theta_deg: float, target_phi_deg: float,
                 wobble = torch.tensor(0.0, device="cuda")
             
             total_loss = loss + wobble
-            particle.record_path()   
         else:
-            particle.record_path()
+            # Non-heavy mode: use actual trajectory deviation
             wobble_val = _compute_path_wobble(particle._path)
             total_loss = loss
         
@@ -401,3 +404,4 @@ if __name__ == "__main__":
     print("  Converges: particle points at target             ✅")
     print()
     print("Next: wire into vqpc_server.py as tool #9 (train_particle).")   
+

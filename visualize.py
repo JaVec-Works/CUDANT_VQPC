@@ -38,7 +38,7 @@ def _build_trajectory(gates_str: str) -> list:
                 p.rotate_x(angle)
             elif name == "Ry":
                 p.rotate_y(angle)
-            elif name == "Rz":
+            elif name == "RZ":
                 p.rotate_z(angle)
             label = g
         else:
@@ -123,7 +123,7 @@ def generate_gif(gates_str: str, slowmo: bool = True, output_path: str = "replay
     ax.text(0, 1.2, 0, 'Y', color='green')
     ax.text(0, 0, 1.2, 'Z', color='blue')
     
-    # Trail (fading)
+    # Trail (fading) - 3D path
     trail = ax.plot([], [], [], 'o-', color='orange', alpha=0.6, markersize=3, linewidth=1)
     # Current vector (line from origin to vector tip)
     arrow, = ax.plot([0, 0], [0, 0], [0, 0], color='red', linewidth=2)   
@@ -132,21 +132,24 @@ def generate_gif(gates_str: str, slowmo: bool = True, output_path: str = "replay
     
     path_so_far = []
     
+    # Set view ONCE at initialization (NOT in loop)
+    ax.view_init(elev=20, azim=45)
+    
     def animate(frame_idx):
         v = frames[frame_idx]
         path_so_far.append(v)
         
-        # Update trail
+        # Update trail - use set_3d_properties for all coordinates
         if len(path_so_far) > 1:
             trail_x = [p[0] for p in path_so_far]
             trail_y = [p[1] for p in path_so_far]
             trail_z = [p[2] for p in path_so_far]
-            trail[0].set_data(trail_x, trail_y)
-            trail[0].set_3d_properties(trail_z)
+            trail[0].set_data(trail_x, trail_y)  # X-Y projection stays 2D
+            trail[0].set_3d_properties(trail_z)  # Z is set separately
         
-        # Update arrow
+        # Update arrow - 3D line from origin to vector tip
         arrow.set_data([0, v[0]], [0, v[1]])
-        arrow.set_3d_properties([0, v[2]])   
+        arrow.set_3d_properties([0, v[2]])
         
         # Update label
         theta = np.degrees(np.arccos(np.clip(v[2], -1, 1)))
@@ -154,7 +157,6 @@ def generate_gif(gates_str: str, slowmo: bool = True, output_path: str = "replay
         p0 = (1 + v[2]) / 2
         text.set_text(f"θ={theta:.0f}° φ={phi:.0f}° P(0)={p0:.2f}")
         
-        ax.view_init(elev=20, azim=45)
         return []
     
     anim = FuncAnimation(fig, animate, frames=len(frames), interval=200, blit=False)
@@ -208,3 +210,4 @@ if __name__ == "__main__":
     print("  Open them in any image viewer.")
     print("  The red arrow is the particle. The orange trail is its path.")
     print("  Clean = straight line. Wobbly = cone. Kickback = curve.")   
+
