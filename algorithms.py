@@ -181,7 +181,7 @@ def quantum_fourier_transform(n_qubits: int, input_state: str = "0") -> dict:
         state[idx] = 1.0
     
     # QFT = DFT / √N
-    state = torch.fft.fft(state) / np.sqrt(dim)
+    state = torch.fft.ifft(state) * np.sqrt(dim)
     
     # Results
     probs = state.abs() ** 2

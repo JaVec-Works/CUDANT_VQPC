@@ -86,20 +86,18 @@ def apply_cnot(state: torch.Tensor, control: int, target: int, n_qubits: int) ->
     return s.reshape(-1)
 
 def bloch_vector(state: torch.Tensor, n_qubits: int, target_qubit: int) -> np.ndarray:
-    """Extract the reduced Bloch vector for one qubit from the full state."""
-    dim = 2 ** n_qubits
-    rho_q = torch.zeros(2, 2, dtype=torch.complex64, device=state.device)
-    for i in range(dim):
-        for j in range(dim):
-            bits_i = [(i >> (n_qubits - 1 - k)) & 1 for k in range(n_qubits)]
-            bits_j = [(j >> (n_qubits - 1 - k)) & 1 for k in range(n_qubits)]
-            if all(bits_i[k] == bits_j[k] for k in range(n_qubits) if k != target_qubit):
-                qi = bits_i[target_qubit]
-                qj = bits_j[target_qubit]
-                rho_q[qi, qj] += state[i] * state[j].conj()
-    sx = (rho_q[0, 1] + rho_q[1, 0]).real.item()
-    sy = (rho_q[0, 1] - rho_q[1, 0]).imag.item()
-    sz = (rho_q[0, 0] - rho_q[1, 1]).real.item()
+    """Extract the reduced Bloch vector for one qubit from the full state.
+    O(2^N) via reshape + matrix multiply. Replaces the old O(4^N) double loop."""
+    s = state.reshape([2] * n_qubits)
+    # Move target qubit to last position
+    perm = [i for i in range(n_qubits) if i != target_qubit] + [target_qubit]
+    s = s.permute(perm).reshape(-1, 2)
+    # Reduced density matrix: rho = (1/d) * s^dag @ s ... actually just s^dag @ s normalized
+    rho = s.conj().T @ s
+    rho = rho / rho.trace().real
+    sx = (rho[0, 1] + rho[1, 0]).real.item()
+    sy = (rho[0, 1] - rho[1, 0]).imag.item()
+    sz = (rho[0, 0] - rho[1, 1]).real.item()
     return np.array([sx, sy, sz])   
 
 # ============================================================

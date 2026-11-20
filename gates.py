@@ -48,7 +48,7 @@ GATES = {
     "X":  rotation_x(np.pi),
     "Y":  rotation_y(np.pi),
     "Z":  rotation_z(np.pi),
-    "H":  torch.tensor([[0,0,1],[0,1,0],[1,0,0]], dtype=torch.float32, device="cuda"),
+    "H":  torch.tensor([[0,0,1],[0,-1,0],[1,0,0]], dtype=torch.float32, device="cuda"),
     "S":  rotation_z(np.pi / 2),
     "Sd": rotation_z(-np.pi / 2),
     "T":  rotation_z(np.pi / 4),

@@ -146,7 +146,7 @@ if __name__ == "__main__":
     
     # Rotate to: elevation 60°, direction 45°
     # Step 1: Rx(60°) — tilt down to 60° elevation
-    p.rotate_x(np.radians(60))
+    p.rotate_y(np.radians(60))
     p.report("After Rx(60°)")
     
     # Step 2: Rz(45°) — spin around Z to 45° direction

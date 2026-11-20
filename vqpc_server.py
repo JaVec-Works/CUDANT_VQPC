@@ -1,6 +1,6 @@
 # CUDANT_VQPC — vqpc_server.py
 # The AI's interface to the virtual quantum computer.
-# 8 tools: run_circuit, measure_state, wobble_report, list_gates, run_cage, run_engine, run_algorithm, help   
+# 10 tools: run_circuit, measure_state, wobble_report, list_gates, run_cage, run_engine, run_algorithm, train_particle, replay, help      
 #
 # Run: python vqpc_server.py
 
@@ -59,7 +59,10 @@ def run_circuit_tool(gates: str, n_shots: int = 1000, seed: int = 42) -> str:
         "Rx(30), Rz(45), Rx(30)" → three rotations, any direction
         "X" → bit flip, |0> becomes |1>
     """
-    result = run_circuit(gates, n_shots=n_shots, seed=seed)
+    try:
+        result = run_circuit(gates, n_shots=n_shots, seed=seed)
+    except Exception as e:
+        return json.dumps({"error": str(e), "tool": "run_circuit", "advice": f"Check gate string. Valid named gates: I, X, Y, Z, H, S, Sd, T, Td. Valid parameterized: Rx(deg), Ry(deg), Rz(deg). Example: 'H, T, H' or 'Rx(30), Rz(45)'."}, indent=2)
 
     output = {
         "circuit": result["gates"],
@@ -170,7 +173,10 @@ def wobble_report(gates: str) -> str:
         "Rx(5), Rz(10), Rx(5), Rz(10)" → SLIGHT (minor cone)
         "H, T, H" → WOBBLING (phase kick curves the path)
     """
-    result = run_circuit(gates, n_shots=0)
+    try:
+        result = run_circuit(gates, n_shots=0)
+    except Exception as e:
+        return json.dumps({"error": str(e), "tool": "wobble_report", "advice": f"Check gate string. Example: 'Rx(50)' or 'H, T, H'."}, indent=2)
 
     wobble = result["wobble"]
     if wobble < 0.01:
@@ -260,26 +266,29 @@ def run_cage(n_lions: int, operations: list, n_shots: int = 1000, seed: int = 42
     if n_lions < 1 or n_lions > _max_lions:
         return json.dumps({"error": f"n_lions must be 1-{_max_lions}. Got {n_lions}."})   
 
-    cage = Cage(n_lions)
+    try:
+        cage = Cage(n_lions)
 
-    for op in operations:
-        parts = op.strip().split()
-        if not parts:
-            continue
-        cmd = parts[0].upper()
+        for op in operations:
+            parts = op.strip().split()
+            if not parts:
+                continue
+            cmd = parts[0].upper()
 
-        if cmd == "GATE" and len(parts) == 3:
-            cage.apply_gate(int(parts[1]), parts[2])
-        elif cmd == "RX" and len(parts) == 3:
-            cage.apply_rx(int(parts[1]), float(parts[2]))
-        elif cmd == "RY" and len(parts) == 3:
-            cage.apply_ry(int(parts[1]), float(parts[2]))
-        elif cmd == "RZ" and len(parts) == 3:
-            cage.apply_rz(int(parts[1]), float(parts[2]))
-        elif cmd == "CNOT" and len(parts) == 3:
-            cage.apply_cnot(int(parts[1]), int(parts[2]))
-        else:
-            return json.dumps({"error": f"Unrecognized: '{op}'. Valid: GATE, RX, RY, RZ, CNOT"})
+            if cmd == "GATE" and len(parts) == 3:
+                cage.apply_gate(int(parts[1]), parts[2])
+            elif cmd == "RX" and len(parts) == 3:
+                cage.apply_rx(int(parts[1]), float(parts[2]))   
+            elif cmd == "RY" and len(parts) == 3:
+                cage.apply_ry(int(parts[1]), float(parts[2]))
+            elif cmd == "RZ" and len(parts) == 3:
+                cage.apply_rz(int(parts[1]), float(parts[2]))
+            elif cmd == "CNOT" and len(parts) == 3:
+                cage.apply_cnot(int(parts[1]), int(parts[2]))
+            else:
+                return json.dumps({"error": f"Unrecognized: '{op}'. Valid: GATE, RX, RY, RZ, CNOT"})
+    except Exception as e:
+        return json.dumps({"error": str(e), "tool": "run_cage", "advice": f"Check operations format. Valid: 'GATE <id> <name>', 'RX <id> <deg>', 'RY <id> <deg>', 'RZ <id> <deg>', 'CNOT <ctrl> <tgt>'. n_lions={n_lions}."}, indent=2)   
 
     lions = []
     for i, p in enumerate(cage.particles):
@@ -321,14 +330,6 @@ def run_cage(n_lions: int, operations: list, n_shots: int = 1000, seed: int = 42
                 "freq_0": round(results[i]["zeros"] / n_shots, 4),
                 "freq_1": round(results[i]["ones"] / n_shots, 4),
             }
-        if cage.rods:
-            output["correlation_check"] = {}
-            for (c, t) in cage.rods:
-                agree = (results[c]["zeros"] == results[t]["zeros"])
-                output["correlation_check"][f"{c}↔{t}"] = {
-                    "always_agree": agree,
-                    "detail": "Rod holds." if agree else "Mismatch.",
-                }
 
     return json.dumps(output, indent=2)
 
@@ -361,8 +362,11 @@ def run_engine(n_qubits: int, operations: list, n_shots: int = 1000, seed: int =
         n_qubits=4, operations=["GATE 0 H", "CNOT 0 1", "CNOT 1 2", "CNOT 2 3"]
         → 4-qubit GHZ. P(0000)=0.5, P(1111)=0.5.
     """
-    result = _run_engine(n_qubits, operations, n_shots=n_shots, seed=seed)
-    return json.dumps(result, indent=2)   
+    try:
+        result = _run_engine(n_qubits, operations, n_shots=n_shots, seed=seed)
+    except Exception as e:
+        return json.dumps({"error": str(e), "tool": "run_engine", "advice": f"Check operations format and qubit count (1-16). Valid: 'GATE <id> <name>', 'CNOT <ctrl> <tgt>'."}, indent=2)
+    return json.dumps(result, indent=2)     
 
 @mcp.tool()
 def run_algorithm(name: str, n_qubits: int = 4, target: int = 0, phase_deg: float = 0.0, input_state: str = "0") -> str:
@@ -389,9 +393,12 @@ def run_algorithm(name: str, n_qubits: int = 4, target: int = 0, phase_deg: floa
         name="qft", n_qubits=4, input_state="1000" → QFT of |1000>
         name="phase_estimation", n_qubits=5, phase_deg=90 → estimate 90°
     """
-    from algorithms import run_algorithm as _run_algorithm
-    result = _run_algorithm(name, n_qubits=n_qubits, target=target, phase_deg=phase_deg, input_state=input_state)
-    return json.dumps(result, indent=2)   
+    try:
+        from algorithms import run_algorithm as _run_algorithm
+        result = _run_algorithm(name, n_qubits=n_qubits, target=target, phase_deg=phase_deg, input_state=input_state)
+    except Exception as e:
+        return json.dumps({"error": str(e), "tool": "run_algorithm", "advice": f"Valid names: grover, bell_pair, ghz_state, qft, phase_estimation. n_qubits={n_qubits}."}, indent=2)
+    return json.dumps(result, indent=2)     
 
 @mcp.tool()
 def train_particle(target_theta: float, target_phi: float, steps: int = 200, lr: float = 0.05, lambda_wobble: float = 0.1, seed: int = 42, heavy: bool = False) -> str:
@@ -476,6 +483,12 @@ def help() -> str:
             "I want to SEE the particle move": "replay",
 
         },
+        "gate_syntax": {
+            "run_circuit (1 qubit)": "Shorthand: 'H, T, H' or 'Rx(30), Rz(45)'",
+            "run_cage / run_engine (multi-qubit)": "Explicit: ['GATE 0 H', 'CNOT 0 1', 'RX 2 45']",
+            "warning": "Do NOT mix the two formats. 'H0' is NOT valid in run_circuit. 'GATE 0 H' is NOT valid in run_circuit.",
+        },   
+        
         "quick_start": {
             "step_1": "Call list_gates to see what gates are available.",
             "step_2": "Call run_circuit with a simple gate like 'H' to see a single particle in superposition.",

@@ -13,7 +13,7 @@ from gates import (
 from measure import measure_single, measure_n_shots
 
 
-def run_circuit(gates_str, n_qubits=1, n_shots=0, seed=None):
+def run_circuit(gates_str, n_shots=0, seed=None):
     """
     Run a quantum circuit.
     
@@ -22,7 +22,6 @@ def run_circuit(gates_str, n_qubits=1, n_shots=0, seed=None):
                    Named: I, X, Y, Z, H, S, Sd, T, Td
                    Parameterized: Rx(30), Ry(45), Rz(60)  [degrees]
                    Example: "H, T, H" or "Rx(30), Rz(45), Rx(30)"
-        n_qubits: Number of qubits (1 for now, multi-qubit later)
         n_shots: If > 0, measure N times and return distribution
         seed: Random seed for measurement
     
