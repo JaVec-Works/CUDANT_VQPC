@@ -495,9 +495,6 @@ def help() -> str:
             "run_algorithm": "Pre-built algorithms: grover, bell_pair, ghz_state, qft, phase_estimation. Say the problem, get the answer.",
             "train_particle": "Train a particle to point at a target (θ, φ). Gradient descent + wobble regularizer.",
             "replay": "Visualize a circuit's path. Generates a GIF of the Bloch sphere with the vector animating through each gate.",
-            "run_box": "Vector-tiled cube. Tiling is the program, orbit is the answer.",
-            "encode_algorithm": "Bake a quantum algorithm into a cube tiling.",
-            "validate_box": "Compare cube model output against the exact engine.",   
             "help": "This message.",
         },
         "which_tool": {
@@ -507,9 +504,6 @@ def help() -> str:
             "not sure": "start with run_cage for intuition, confirm with run_engine",
             "I have a specific problem (search, entangle, transform, estimate)": "run_algorithm",
             "teach the particle to point somewhere": "train_particle",
-            "I want to run the cube model": "run_box",
-            "I want to build a tiling for an algorithm": "encode_algorithm",
-            "I want to verify the box is correct": "validate_box",   
             "I want to SEE the particle move": "replay",
 
         },
@@ -538,155 +532,6 @@ def help() -> str:
 
     return json.dumps(overview, indent=2)
 
-# ============================================================
-# CUBE MODEL TOOLS (additive — no changes above this line)
-# ============================================================
-
-from box import Box
-from tiling import flat_mirrors, random_tiling, load_tiling, save_tiling
-from encode_algorithm import circuit_to_tiling
-from validate_box import validate as _validate_box
-from store import OrbitStore
-# Edit out this comment to change db 'from qdrant_store import OrbitStore'
-
-_orbit_store = None
-
-def _get_store():
-    global _orbit_store
-    if _orbit_store is None:
-        _orbit_store = OrbitStore()
-    return _orbit_store
-
-
-@mcp.tool()
-def run_box(tiling: str = "flat", v0: list = None, K: int = 10000, N: int = 16, n_colors: int = 1, ticks_every: int = 100, seed: int = 42) -> str:
-    """
-    Run trajectories in the vector-tiled cube. The tiling IS the program.
-
-    Args:
-        tiling: Tiling name. "flat" (mirrors), "random", or a saved name.
-        v0: Initial direction [vx, vy, vz]. Default: [0, 0, 1] (= |0>).
-        K: Number of bounces (steps).
-        N: Tiles per face (zoom). 4, 8, 16, 32, 64.
-        n_colors: Number of independent trajectories.
-        ticks_every: Store every m-th tick.
-        seed: RNG seed for random initial directions.
-
-    Returns:
-        Orbit data, final directions, tick IDs.
-    """
-    try:
-        if tiling == "flat":
-            T = flat_mirrors(N)
-        elif tiling == "random":
-            T = random_tiling(N, seed)
-        else:
-            T = load_tiling(tiling)
-
-        if v0 is None:
-            v0 = [0.0, 0.0, 1.0]
-
-        box = Box(N, T)
-
-        if n_colors == 1:
-            v = torch.tensor(v0, dtype=torch.float32, device="cuda")
-            v = v / v.norm()
-            v_final, orbit = box.run(v, K)
-            orbits = [orbit]
-        else:
-            torch.manual_seed(seed)
-            v_batch = torch.randn(n_colors, 3, dtype=torch.float32, device="cuda")
-            v_batch = v_batch / v_batch.norm(dim=1, keepdim=True)
-            orbits, v_final_batch = box.run_multi(v_batch, K)
-
-        store = _get_store()
-        point_ids = store.store_orbit(
-            traj_id=f"box_{tiling}_{N}_{K}_{seed}",
-            orbits=orbits,
-            tiling_version=tiling,
-            N=N, K=K,
-            ticks_every=ticks_every,
-        )
-
-        output = {
-            "box": {
-                "tiling": tiling,
-                "N": N,
-                "K": K,
-                "n_colors": n_colors,
-                "v0": v0,
-            },
-            "final_direction": [round(x, 6) for x in v_final.tolist()] if n_colors == 1 else {
-                f"color_{i}": [round(x, 6) for x in v_final_batch[i].tolist()]
-                for i in range(n_colors)
-            },
-            "orbit_length": K,
-            "ticks_stored": len(point_ids),
-            "first_tick_id": point_ids[0] if point_ids else None,
-        }
-        return json.dumps(output, indent=2)
-    except Exception as e:
-        return json.dumps({"error": str(e), "tool": "run_box",
-                           "advice": "Valid tilings: 'flat', 'random', or a saved name. N must be power of 2."})   
-
-
-@mcp.tool()
-def encode_algorithm_tool(name: str, n_qubits: int = 4, N: int = 16, target: int = 0, save_as: str = "") -> str:
-    """
-    Encode a quantum algorithm as a cube tiling.
-
-    Args:
-        name: "grover", "bell_pair", "ghz_state", "qft", "phase_estimation"
-        n_qubits: Number of qubits the algorithm targets.
-        N: Tiles per face for the generated tiling.
-        target: For grover. The marked index.
-        save_as: If non-empty, save the tiling to disk with this name.
-
-    Returns:
-        Tiling metadata + file path.
-    """
-    try:
-        T = circuit_to_tiling(name, n_qubits=n_qubits, N=N, target=target)
-        path = None
-        if save_as:
-            path = save_tiling(T, save_as)
-
-        output = {
-            "algorithm": name,
-            "n_qubits": n_qubits,
-            "N": N,
-            "tiling_shape": list(T.shape),
-            "tiling_size_kb": round(T.numel() * 4 / 1024, 1),
-            "saved_to": path,
-            "usage": f"run_box(tiling='{save_as or name}', N={N}, K=10000)" if save_as else
-                     f"Pass this tiling to run_box (not yet saved).",
-        }
-        return json.dumps(output, indent=2)
-    except Exception as e:
-        return json.dumps({"error": str(e), "tool": "encode_algorithm",
-                           "advice": "Valid names: grover, bell_pair, ghz_state, qft, phase_estimation."})
-
-
-@mcp.tool()
-def validate_box_tool(n_qubits: int, operations: list, N: int = 16, K: int = 10000) -> str:
-    """
-    Validate the cube model against the exact engine (ground truth).
-    NOTE: Requires a properly encoded tiling. Flat/random tilings will FAIL by design.
-
-    Args:
-        n_qubits: 1-16.
-        operations: Same format as run_engine.
-        N: Tiles per face.
-        K: Bounces to run.
-
-    Returns:
-        Per-qubit error (box vs engine) + PASS/FAIL.
-    """   
-    try:
-        result = _validate_box(n_qubits, operations, N=N, K=K)
-        return json.dumps(result, indent=2)
-    except Exception as e:
-        return json.dumps({"error": str(e), "tool": "validate_box"})   
 
 if __name__ == "__main__":
     print("=== CUDANT-VQPC MCP SERVER ===")
